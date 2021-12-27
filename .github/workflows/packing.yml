@@ -1,0 +1,59 @@
+name: Pack Module
+
+on:
+  workflow_run:
+    workflows: ["Run Tests"]
+    types: [completed]
+
+jobs:
+  packing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+      - name: Pack module
+        run: npm i && npm run lint && npm run format && npm run build
+      - name: Archive module
+        uses: actions/upload-artifact@v2
+        with:
+          name: dist
+          path: dist/
+
+  deployment_github:
+    needs: packing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+      - name: Setup NPM
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16.x'
+          registry-url: https://npm.pkg.github.com"
+      - name: Download a single artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: dist
+          path: dist
+      - run: npm i && npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_TOKEN }}
+  deployment_npm:
+    needs: packing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+      - name: Setup NPM
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16.x'
+          registry-url: https://registry.npmjs.org
+      - name: Download a single artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: dist
+          path: dist
+      - run: npm i && npm publish --access=public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
